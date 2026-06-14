@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://tot.page/tot.webp" alt="tot" width="700">
+  <img src="./totpage2.webp" alt="tot" width="700">
 </p>
 
 
