@@ -50,6 +50,21 @@ export function livingUrl(contentOrigin: string, slug: string, docPath: string):
 	return `${base}/${slug}/${docPath}`;
 }
 
+/** Build the immutable, commit-pinned URL for one exact file version. */
+export function frozenUrl(
+	contentOrigin: string,
+	slug: string,
+	docPath: string,
+	version: string,
+): string {
+	const base = contentOrigin.replace(/\/+$/, "");
+	return `${base}/${slug}/${docPath}@${version}`;
+}
+
+function shortCommit(version: string): string {
+	return version.slice(0, 7);
+}
+
 /**
  * `tot <file>` — publish a new page.
  * POST /v1/documents → poll GET until `version` is non-null → print living URL.
@@ -81,6 +96,7 @@ export async function publishCommand(
 	// Sequential by design: each poll waits for the previous to settle (the loop
 	// IS the wait), so the await-in-loop warning doesn't apply here.
 	// oxlint-disable no-await-in-loop
+	let fileUrl: string | null = created.document.file_url ?? null;
 	while (version === null) {
 		if (deps.now() - start > POLL_TIMEOUT_MS) {
 			throw new Error("document failed to publish; version is still null after 30s");
@@ -89,10 +105,12 @@ export async function publishCommand(
 		const doc = await getDocument(deps.http, wsId, docId);
 		version = doc.version;
 		docPath = doc.doc_path;
+		fileUrl = doc.file_url ?? fileUrl;
 	}
 	// oxlint-enable no-await-in-loop
 
 	const url = livingUrl(cfg.contentOrigin, slug, docPath);
+	const snapshotUrl = fileUrl ?? frozenUrl(cfg.contentOrigin, slug, docPath, version);
 	const entry: RegistryEntry = {
 		wsId,
 		docId,
@@ -107,11 +125,9 @@ export async function publishCommand(
 	cfg.save();
 
 	deps.log("");
-	deps.log(`  ${url}`);
-	deps.log("");
-	deps.log(`  slug   ${slug}`);
-	deps.log(`  type   ${kind}`);
-	deps.log(`  bytes  ${entry.bytes}`);
+	deps.log(`  ↳ ${url}`);
+	deps.log(`  commit  ${shortCommit(version)}`);
+	deps.log(`  frozen  ${snapshotUrl}`);
 	deps.log("");
 }
 
@@ -156,7 +172,14 @@ export async function updateCommand(target: string, cfg: Config, deps: CommandDe
 
 	deps.log("");
 	deps.log(`  updated  ${entry.url}`);
-	deps.log(`  version  ${doc.version ?? "(pending — first save still landing)"}`);
+	if (doc.version) {
+		deps.log(`  commit   ${shortCommit(doc.version)}`);
+		deps.log(
+			`  frozen   ${doc.file_url ?? frozenUrl(cfg.contentOrigin, entry.slug, entry.docPath, doc.version)}`,
+		);
+	} else {
+		deps.log("  commit   (pending — first save still landing)");
+	}
 	deps.log("");
 }
 

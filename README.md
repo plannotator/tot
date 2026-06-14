@@ -13,7 +13,9 @@ npm i -g @plannotator/tot
 
 ```
 tot notes.md
-→ https://tot.page/aB3xK9qLm2_QsBOlkxoSt
+  ↳ https://tot.page/aB3xK9q
+  commit  e5f6c1a
+  frozen  https://tot.page/aB3xK9q/index.md@e5f6c1a
 ```
 
 ## Commands

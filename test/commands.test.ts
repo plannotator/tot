@@ -81,6 +81,10 @@ describe("publish", () => {
 
 		expect(gets).toBe(3); // polled exactly until the hash appeared
 		expect(logs.join("\n")).toContain("https://tot.page/k7q9zyxwvu98abcd");
+		expect(logs.join("\n")).toContain("commit  abc123");
+		expect(logs.join("\n")).toContain(
+			"frozen  https://tot.page/k7q9zyxwvu98abcd/index.md@abc123",
+		);
 		// And the registry recorded the page.
 		expect(cfg.getEntryByFile(file)?.slug).toBe("k7q9zyxwvu98abcd");
 	});
@@ -111,6 +115,8 @@ describe("publish", () => {
 		expect(parsed.body).toBe("<h1>Hi</h1>");
 		// page.html is not an index — the URL keeps the filename.
 		expect(logs.join("\n")).toContain("https://tot.page/slugH/page.html");
+		expect(logs.join("\n")).toContain("commit  v1");
+		expect(logs.join("\n")).toContain("frozen  https://tot.page/slugH/page.html@v1");
 	});
 
 	// Catches: an empty file breaking the POST or poll. Zero bytes is valid.
@@ -202,7 +208,8 @@ describe("update", () => {
 		expect(seen?.path).toBe("/v1/workspaces/ws_9/documents/doc_9");
 		expect(seen?.headers?.["content-type"]).toBe("text/markdown");
 		expect(seen?.body).toBe("# v2 content");
-		expect(logs.join("\n")).toContain("newhash");
+		expect(logs.join("\n")).toContain("commit   newhash");
+		expect(logs.join("\n")).toContain("frozen   https://tot.page/slug9/index.md@newhash");
 	});
 
 	// Catches: `tot update <url>` (the form SPEC §4 advertises) not reading from
