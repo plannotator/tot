@@ -20,8 +20,8 @@ tot notes.md
 
 | Command | What it does |
 |---|---|
-| `tot notes.md` | Publish markdown. It renders to a page. |
-| `tot page.html` | Publish HTML. It is served exactly as written. |
+| `tot notes.md` | Publish markdown as the raw `.md` file. |
+| `tot page.html` | Publish HTML as the raw `.html` file. |
 | `tot update <link>` | Push new content. The same link updates. |
 | `tot list` | Show what you have published. |
 | `tot remove <link>` | Take a page down. |
@@ -29,7 +29,7 @@ tot notes.md
 
 ## How it works
 
-Markdown renders to a page. HTML is served byte for byte.
+Files are served byte for byte. Markdown comes back as raw markdown. HTML comes back as raw HTML.
 
 Your link is live. Run `tot update` and the same `tot.page/...` link shows the new version. Every version also keeps a frozen `@hash` link that never changes, for when you want a fixed snapshot.
 

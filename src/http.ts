@@ -103,7 +103,7 @@ export interface DocumentEntity {
 	body: string;
 	created_at: string;
 	updated_at: string;
-	rendered_url: string | null;
+	file_url: string | null;
 }
 
 export interface WorkspaceEntity {

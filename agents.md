@@ -11,7 +11,9 @@ CLI is a thin wrapper over this API; you can use it directly with `curl`.
 
 ## Core model
 
-- **Markdown is rendered** to an HTML page; **HTML is served as-is**.
+- **Files are served raw.** A markdown file comes back as the raw `.md`; an HTML file
+  comes back as the raw `.html`. tot does not render or transform anything. (A browser
+  may render the HTML on its own; that is the browser, not tot.)
 - **Living vs frozen URLs.** Every publish/update mints a version (a content hash).
   - `share_url` (`https://tot.page/{slug}`) is **living** — always shows the latest.
   - Each version also has a **frozen** `…@{hash}` URL that never changes.
@@ -36,7 +38,7 @@ Response `201`:
 {
   "document":  { "id": "doc_…", "workspace_id": "ws_…", "doc_path": "index.md",
                  "kind": "markdown", "version": null,
-                 "share_url": "https://tot.page/aB3xK9…", "rendered_url": null },
+                 "share_url": "https://tot.page/aB3xK9…", "file_url": null },
   "workspace": { "id": "ws_…", "slug": "aB3xK9…",
                  "share_url": "https://tot.page/aB3xK9…", "visibility": "open" }
 }
