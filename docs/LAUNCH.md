@@ -103,7 +103,9 @@ do the front-line work.
 
 ## Step 5 — Publish the CLI to npm
 
-Current release: `@plannotator/tot@0.1.1`.
+Current published release: `@plannotator/tot@0.1.1`.
+Next patch candidate: `@plannotator/tot@0.1.2`, which fixes npm-bin symlink
+entrypoint detection so `tot --help` runs when installed globally.
 
 Future patch releases use the same flow:
 

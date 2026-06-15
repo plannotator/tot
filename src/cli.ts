@@ -1,4 +1,7 @@
 #!/usr/bin/env node
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import {
 	listCommand,
 	loginCommand,
@@ -122,8 +125,25 @@ export async function main(argv: string[] = process.argv.slice(2)): Promise<numb
 	return 0;
 }
 
+function realPathForEntrypoint(value: string): string {
+	const absolute = path.resolve(value);
+	try {
+		return fs.realpathSync(absolute);
+	} catch {
+		return absolute;
+	}
+}
+
+export function isCliEntrypoint(
+	metaUrl: string,
+	argv1: string | undefined = process.argv[1],
+): boolean {
+	if (argv1 === undefined) return false;
+	return realPathForEntrypoint(fileURLToPath(metaUrl)) === realPathForEntrypoint(argv1);
+}
+
 // Only run when invoked as the CLI, not when imported (e.g. by tests).
-if (import.meta.url === `file://${process.argv[1]}`) {
+if (isCliEntrypoint(import.meta.url)) {
 	main().then(
 		(code) => process.exit(code),
 		(err: unknown) => {

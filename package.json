@@ -1,6 +1,6 @@
 {
 	"name": "@plannotator/tot",
-	"version": "0.1.1",
+	"version": "0.1.2",
 	"description": "Git-backed publishing for Markdown and HTML: one living tot.page URL with immutable @hash snapshots.",
 	"keywords": [
 		"cli",
