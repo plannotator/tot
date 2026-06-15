@@ -1,5 +1,7 @@
 <p align="center">
   <img src="./totpage2.webp" alt="tot" width="700">
+  <br>
+  <sub><a href="https://tot.page">tot.page</a> is what enables <a href="https://plannotator.ai/workspaces">Plannotator Workspaces</a></sub>
 </p>
 
 
