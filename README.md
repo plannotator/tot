@@ -1,9 +1,8 @@
 <p align="center">
-  <img src="./totpage2.webp" alt="tot" width="700">
+  <img src="./site/assets/readme/totpage2.webp" alt="tot" width="700">
   <br>
   <sub><a href="https://tot.page">tot.page</a> is what enables <a href="https://plannotator.ai/workspaces">Plannotator Workspaces</a></sub>
 </p>
-
 
 # tot.page
 
@@ -22,20 +21,26 @@ tot notes.md
 
 ## Commands
 
-| Command | What it does |
-|---|---|
-| `tot notes.md` | Publish markdown as the raw `.md` file. |
-| `tot page.html` | Publish HTML as the raw `.html` file. |
-| `tot update <link>` | Push new content. The same link updates. |
-| `tot list` | Show what you have published. |
-| `tot remove <link>` | Take a page down. |
-| `tot login --key <key>` | Optional. Publish as an owned account instead of anonymous. |
+| Command                 | What it does                                                                           |
+| ----------------------- | -------------------------------------------------------------------------------------- |
+| `tot notes.md`          | Publish markdown as the raw `.md` file.                                                |
+| `tot page.html`         | Publish HTML as the raw `.html` file, plus local support files it directly references. |
+| `tot update <link>`     | Push new content. The same link updates.                                               |
+| `tot list`              | Show what you have published.                                                          |
+| `tot remove <link>`     | Remove the living page from its share link.                                            |
+| `tot login --key <key>` | Optional. Publish as an owned account instead of anonymous.                            |
 
 ## How it works
 
 Files are served byte for byte. Markdown comes back as raw markdown. HTML comes back as raw HTML.
 
+For HTML, `tot` also uploads direct local browser dependencies before the page goes live: images,
+stylesheets, scripts, video, `srcset` entries, and video posters. It skips external URLs and ordinary
+navigation links. There is no config file, build step, routing layer, or bundler.
+
 Your link is live. Run `tot update` and the same `tot.page/...` link shows the new version. Every version also keeps a frozen `@hash` link that never changes, for when you want a fixed snapshot.
+
+`tot remove` removes the living page. Frozen snapshot links are permanent while the workspace exists.
 
 No accounts, no tokens. The link is the key.
 

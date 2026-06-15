@@ -2,6 +2,7 @@
 // `HttpClient`, so commands can be tested by passing a stub — no live server.
 
 export type HttpMethod = "GET" | "POST" | "PUT" | "DELETE";
+export type HttpBody = string | Uint8Array | ArrayBuffer;
 
 export interface HttpResponse {
 	status: number;
@@ -15,7 +16,7 @@ export interface HttpClient {
 	fetch(
 		method: HttpMethod,
 		path: string,
-		body?: string | undefined,
+		body?: HttpBody | undefined,
 		headers?: Record<string, string>,
 	): Promise<HttpResponse>;
 }
@@ -138,6 +139,62 @@ export async function postDocument(
 	return res.json as CreateDocumentResult;
 }
 
+/** POST /v1/workspaces — create an empty workspace shell. */
+export async function postWorkspace(http: HttpClient): Promise<WorkspaceEntity> {
+	const res = await http.fetch("POST", "/v1/workspaces", JSON.stringify({}), {
+		"content-type": "application/json",
+	});
+	if (res.status !== 201 && res.status !== 200) {
+		throw new Error(errorMessage(res));
+	}
+	if (!res.json || !res.json.workspace) {
+		throw new Error("unexpected create workspace response: missing workspace");
+	}
+	return res.json.workspace as WorkspaceEntity;
+}
+
+/** PUT /v1/workspaces/{wsId}/assets/{assetPath} — upload/replace raw support bytes. */
+export async function putAsset(
+	http: HttpClient,
+	wsId: string,
+	assetPath: string,
+	body: Uint8Array,
+	contentType: string,
+): Promise<void> {
+	const res = await http.fetch(
+		"PUT",
+		`/v1/workspaces/${encodeURIComponent(wsId)}/assets/${encodeAssetPath(assetPath)}`,
+		body,
+		{ "content-type": contentType },
+	);
+	if (res.status !== 200) {
+		throw new Error(errorMessage(res));
+	}
+}
+
+/** POST /v1/workspaces/{wsId}/documents — add a document after support files exist. */
+export async function postWorkspaceDocument(
+	http: HttpClient,
+	wsId: string,
+	docPath: string,
+	kind: DocumentKind,
+	body: string,
+): Promise<DocumentEntity> {
+	const res = await http.fetch(
+		"POST",
+		`/v1/workspaces/${encodeURIComponent(wsId)}/documents`,
+		JSON.stringify({ doc_path: docPath, kind, body }),
+		{ "content-type": "application/json" },
+	);
+	if (res.status !== 201 && res.status !== 200) {
+		throw new Error(errorMessage(res));
+	}
+	if (!res.json || !res.json.id) {
+		throw new Error("unexpected add document response: missing document");
+	}
+	return res.json as DocumentEntity;
+}
+
 /** GET /v1/workspaces/{wsId}/documents/{docId} — read current document (JSON). */
 export async function getDocument(
 	http: HttpClient,
@@ -201,4 +258,8 @@ export async function getMe(http: HttpClient): Promise<MeEntity> {
 		throw new Error(errorMessage(res));
 	}
 	return res.json as MeEntity;
+}
+
+function encodeAssetPath(assetPath: string): string {
+	return assetPath.split("/").map(encodeURIComponent).join("/");
 }

@@ -1,9 +1,9 @@
-import type { HttpClient, HttpMethod, HttpResponse } from "../src/http.js";
+import type { HttpBody, HttpClient, HttpMethod, HttpResponse } from "../src/http.js";
 
 export interface RecordedCall {
 	method: HttpMethod;
 	path: string;
-	body?: string | undefined;
+	body?: HttpBody | undefined;
 	headers?: Record<string, string>;
 }
 

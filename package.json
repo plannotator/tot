@@ -43,6 +43,9 @@
 		"test": "vitest run",
 		"prepublishOnly": "pnpm lint && pnpm typecheck && pnpm test && pnpm build"
 	},
+	"dependencies": {
+		"parse5": "^8.0.1"
+	},
 	"devDependencies": {
 		"@types/node": "^22.19.21",
 		"oxfmt": "^0.43.0",
@@ -51,7 +54,7 @@
 		"vitest": "^3.0.0"
 	},
 	"engines": {
-		"node": ">=20"
+		"node": ">=20.19"
 	},
 	"packageManager": "pnpm@10.18.0"
 }
