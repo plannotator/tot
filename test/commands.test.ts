@@ -1,8 +1,10 @@
 import fs from "node:fs";
+import { createHash } from "node:crypto";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
+	frozenUrl,
 	listCommand,
 	livingUrl,
 	publishCommand,
@@ -43,8 +45,20 @@ function makeDeps(http: ReturnType<typeof stubHttp>, clock = { t: 0 }): CommandD
 
 function writeFile(name: string, content: string): string {
 	const p = path.join(tmpDir, name);
+	fs.mkdirSync(path.dirname(p), { recursive: true });
 	fs.writeFileSync(p, content);
 	return p;
+}
+
+function writeBytes(name: string, content: string | Uint8Array): string {
+	const p = path.join(tmpDir, name);
+	fs.mkdirSync(path.dirname(p), { recursive: true });
+	fs.writeFileSync(p, content);
+	return p;
+}
+
+function sha256(content: string | Uint8Array): string {
+	return createHash("sha256").update(content).digest("hex");
 }
 
 const createOk = (over: Record<string, any> = {}) =>
@@ -81,6 +95,10 @@ describe("publish", () => {
 
 		expect(gets).toBe(3); // polled exactly until the hash appeared
 		expect(logs.join("\n")).toContain("https://tot.page/k7q9zyxwvu98abcd");
+		expect(logs.join("\n")).toContain("commit  abc123");
+		expect(logs.join("\n")).toContain(
+			"frozen  https://tot.page/k7q9zyxwvu98abcd/index.md@abc123",
+		);
 		// And the registry recorded the page.
 		expect(cfg.getEntryByFile(file)?.slug).toBe("k7q9zyxwvu98abcd");
 	});
@@ -90,6 +108,7 @@ describe("publish", () => {
 	it("publishes an HTML file as kind=html with the raw body", async () => {
 		const file = writeFile("page.html", "<h1>Hi</h1>");
 		let postBody = "";
+		const cfg = Config.load();
 		const http = stubHttp((call): HttpResponse => {
 			if (call.method === "POST") {
 				postBody = String(call.body);
@@ -97,20 +116,114 @@ describe("publish", () => {
 					document: {
 						id: "doc_1",
 						workspace_id: "ws_1",
-						doc_path: "page.html",
+						doc_path: "index.html",
 						version: "v1",
 					},
 					workspace: { id: "ws_1", slug: "slugH", visibility: "open" },
 				});
 			}
-			return jsonResponse(200, { id: "doc_1", doc_path: "page.html", version: "v1" });
+			return jsonResponse(200, { id: "doc_1", doc_path: "index.html", version: "v1" });
 		});
-		await publishCommand(file, Config.load(), makeDeps(http));
+		await publishCommand(file, cfg, makeDeps(http));
 		const parsed = JSON.parse(postBody);
 		expect(parsed.kind).toBe("html");
 		expect(parsed.body).toBe("<h1>Hi</h1>");
-		// page.html is not an index — the URL keeps the filename.
-		expect(logs.join("\n")).toContain("https://tot.page/slugH/page.html");
+		// Bare HTML uses the one-shot API, which defaults the first HTML doc to index.html.
+		expect(logs.join("\n")).toContain("https://tot.page/slugH");
+		expect(logs.join("\n")).toContain("commit  v1");
+		expect(logs.join("\n")).toContain("frozen  https://tot.page/slugH/index.html@v1");
+	});
+
+	it("publishes HTML with local assets by uploading assets before committing the page", async () => {
+		const html = `<link rel="stylesheet" href="style.css"><img src="img/logo.webp"><script src="app.js"></script>`;
+		const file = writeFile("page.html", html);
+		writeBytes("style.css", "body { color: red; }");
+		writeBytes("img/logo.webp", new Uint8Array([1, 2, 3]));
+		writeBytes("app.js", "console.log('tot');");
+
+		const cfg = Config.load();
+		const http = stubHttp((call): HttpResponse => {
+			if (call.path === "/v1/workspaces") {
+				return jsonResponse(201, {
+					workspace: { id: "ws_assets", slug: "assetSlug", visibility: "open" },
+				});
+			}
+			if (call.path.startsWith("/v1/workspaces/ws_assets/assets/")) {
+				return jsonResponse(200, {});
+			}
+			if (call.path === "/v1/workspaces/ws_assets/documents") {
+				return jsonResponse(201, {
+					id: "doc_assets",
+					workspace_id: "ws_assets",
+					doc_path: "page.html",
+					version: "assetv1",
+					file_url: "https://tot.page/assetSlug/page.html@assetv1",
+				});
+			}
+			throw new Error("unexpected " + call.method + " " + call.path);
+		});
+
+		await publishCommand(file, cfg, makeDeps(http));
+
+		expect(http.calls.map((call) => `${call.method} ${call.path}`)).toEqual([
+			"POST /v1/workspaces",
+			"PUT /v1/workspaces/ws_assets/assets/style.css",
+			"PUT /v1/workspaces/ws_assets/assets/img/logo.webp",
+			"PUT /v1/workspaces/ws_assets/assets/app.js",
+			"POST /v1/workspaces/ws_assets/documents",
+		]);
+		expect(http.calls[1].headers?.["content-type"]).toBe("text/css");
+		expect(http.calls[2].headers?.["content-type"]).toBe("image/webp");
+		expect(http.calls[3].headers?.["content-type"]).toBe("application/javascript");
+		expect(new Uint8Array(http.calls[2].body as Uint8Array)).toEqual(new Uint8Array([1, 2, 3]));
+		const documentBody = JSON.parse(String(http.calls[4].body));
+		expect(documentBody).toEqual({ doc_path: "page.html", kind: "html", body: html });
+		expect(cfg.getEntryByFile(file)?.assets).toMatchObject({
+			"style.css": { contentType: "text/css" },
+			"img/logo.webp": { contentType: "image/webp" },
+			"app.js": { contentType: "application/javascript" },
+		});
+		expect(logs.join("\n")).toContain("https://tot.page/assetSlug/page.html");
+	});
+
+	it("rejects invalid HTML-with-assets document paths before any network call", async () => {
+		const file = writeFile("100%.html", `<img src="logo.webp">`);
+		writeBytes("logo.webp", new Uint8Array([1, 2, 3]));
+		const http = stubHttp((): HttpResponse => {
+			throw new Error("should not be called");
+		});
+
+		await expect(publishCommand(file, Config.load(), makeDeps(http))).rejects.toThrow(
+			/unsupported document path/,
+		);
+		expect(http.calls).toHaveLength(0);
+	});
+
+	it("rejects oversized HTML assets before creating a workspace", async () => {
+		const file = writeFile("page.html", `<video src="huge.mp4"></video>`);
+		const huge = path.join(tmpDir, "huge.mp4");
+		fs.writeFileSync(huge, "");
+		fs.truncateSync(huge, 10 * 1024 * 1024 + 1);
+		const http = stubHttp((): HttpResponse => {
+			throw new Error("should not be called");
+		});
+
+		await expect(publishCommand(file, Config.load(), makeDeps(http))).rejects.toThrow(
+			/local asset too large/,
+		);
+		expect(http.calls).toHaveLength(0);
+	});
+
+	it("fails before any network call when an HTML asset is missing", async () => {
+		const file = writeFile("page.html", `<img src="missing.png">`);
+		const http = stubHttp((): HttpResponse => {
+			throw new Error("should not be called");
+		});
+
+		await expect(publishCommand(file, Config.load(), makeDeps(http))).rejects.toThrow(
+			/local asset not found/,
+		);
+		expect(http.calls).toHaveLength(0);
 	});
 
 	// Catches: an empty file breaking the POST or poll. Zero bytes is valid.
@@ -173,6 +286,17 @@ describe("publish", () => {
 	});
 });
 
+describe("URL helpers", () => {
+	it("encodes non-index document path segments in living and frozen URLs", () => {
+		expect(livingUrl("https://tot.page/", "slug", "my page.html")).toBe(
+			"https://tot.page/slug/my%20page.html",
+		);
+		expect(frozenUrl("https://tot.page/", "slug", "dir/my page.html", "abc123")).toBe(
+			"https://tot.page/slug/dir/my%20page.html@abc123",
+		);
+	});
+});
+
 describe("update", () => {
 	// Catches: update not resolving the file → {wsId, docId} from the registry,
 	// or PUTting with the wrong content-type. Must be text/markdown for md docs.
@@ -202,7 +326,8 @@ describe("update", () => {
 		expect(seen?.path).toBe("/v1/workspaces/ws_9/documents/doc_9");
 		expect(seen?.headers?.["content-type"]).toBe("text/markdown");
 		expect(seen?.body).toBe("# v2 content");
-		expect(logs.join("\n")).toContain("newhash");
+		expect(logs.join("\n")).toContain("commit   newhash");
+		expect(logs.join("\n")).toContain("frozen   https://tot.page/slug9/index.md@newhash");
 	});
 
 	// Catches: `tot update <url>` (the form SPEC §4 advertises) not reading from
@@ -235,6 +360,96 @@ describe("update", () => {
 		expect(seen?.method).toBe("PUT");
 		expect(seen?.path).toBe("/v1/workspaces/ws_u/documents/doc_u");
 		expect(seen?.body).toBe("# v2 via url"); // read from the file, not the URL
+	});
+
+	it("re-scans HTML on update and uploads assets before replacing the body", async () => {
+		const html = `<video src="media/demo.mp4" poster="poster.jpg"></video>`;
+		const file = writeFile("page.html", html);
+		const videoBytes = new Uint8Array([10, 11, 12, 13]);
+		const posterBytes = new Uint8Array([255, 216, 255]);
+		writeBytes("media/demo.mp4", videoBytes);
+		writeBytes("poster.jpg", posterBytes);
+		const cfg = Config.load();
+		cfg.addEntry(file, {
+			wsId: "ws_html",
+			docId: "doc_html",
+			slug: "slugHtml",
+			url: "https://tot.page/slugHtml/page.html",
+			kind: "html",
+			docPath: "page.html",
+			bytes: 1,
+			assets: {
+				"poster.jpg": {
+					sha256: sha256(posterBytes),
+					contentType: "image/jpeg",
+					size: posterBytes.byteLength,
+				},
+			},
+			createdAt: "2026-06-07T18:24:00Z",
+		});
+
+		const http = stubHttp((call): HttpResponse => {
+			if (call.path.startsWith("/v1/workspaces/ws_html/assets/")) {
+				return jsonResponse(200, {});
+			}
+			if (call.path === "/v1/workspaces/ws_html/documents/doc_html") {
+				return jsonResponse(200, {
+					id: "doc_html",
+					doc_path: "page.html",
+					version: "htmlv2",
+				});
+			}
+			throw new Error("unexpected " + call.method + " " + call.path);
+		});
+
+		await updateCommand(file, cfg, makeDeps(http));
+
+		expect(http.calls.map((call) => `${call.method} ${call.path}`)).toEqual([
+			"PUT /v1/workspaces/ws_html/assets/media/demo.mp4",
+			"PUT /v1/workspaces/ws_html/documents/doc_html",
+		]);
+		expect(http.calls[0].headers?.["content-type"]).toBe("video/mp4");
+		expect(http.calls[1].headers?.["content-type"]).toBe("text/html");
+		expect(http.calls[1].body).toBe(html);
+		expect(cfg.getEntryByFile(file)?.assets).toMatchObject({
+			"media/demo.mp4": {
+				sha256: sha256(videoBytes),
+				contentType: "video/mp4",
+				size: videoBytes.byteLength,
+			},
+			"poster.jpg": {
+				sha256: sha256(posterBytes),
+				contentType: "image/jpeg",
+				size: posterBytes.byteLength,
+			},
+		});
+		expect(logs.join("\n")).toContain("commit   htmlv2");
+	});
+
+	it("rejects oversized update assets before uploading any asset", async () => {
+		const file = writeFile("page.html", `<video src="huge.mp4"></video>`);
+		const huge = path.join(tmpDir, "huge.mp4");
+		fs.writeFileSync(huge, "");
+		fs.truncateSync(huge, 10 * 1024 * 1024 + 1);
+		const cfg = Config.load();
+		cfg.addEntry(file, {
+			wsId: "ws_html",
+			docId: "doc_html",
+			slug: "slugHtml",
+			url: "https://tot.page/slugHtml/page.html",
+			kind: "html",
+			docPath: "page.html",
+			bytes: 1,
+			createdAt: "2026-06-07T18:24:00Z",
+		});
+		const http = stubHttp((): HttpResponse => {
+			throw new Error("should not be called");
+		});
+
+		await expect(updateCommand(file, cfg, makeDeps(http))).rejects.toThrow(
+			/local asset too large/,
+		);
+		expect(http.calls).toHaveLength(0);
 	});
 
 	// Catches: `update <url>` for an entry with NO recorded file path emitting a

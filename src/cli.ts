@@ -42,7 +42,7 @@ function flagStr(flags: Record<string, string | true>, name: string): string | u
 
 const HELP = `tot — publish a page to tot.page
 
-  tot <file>              publish (markdown is rendered, html served as-is)
+  tot <file>              publish a raw markdown or html file
   tot update <file|url>   push new content to the same living URL
   tot remove <file|url>   delete a page (anyone with the link can; so can you)
   tot list                list pages you've published from this machine

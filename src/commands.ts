@@ -1,12 +1,24 @@
 import fs from "node:fs";
+import { createHash } from "node:crypto";
 import path from "node:path";
-import type { Config, RegistryEntry } from "./config.js";
+import {
+	collectHtmlAssetRefs,
+	encodeWorkspacePath,
+	MAX_ASSET_BYTES,
+	MAX_ASSET_BYTES_LABEL,
+	validWorkspacePath,
+	type HtmlAssetRef,
+} from "./asset-refs.js";
+import type { Config, RegistryAssetEntry, RegistryEntry } from "./config.js";
 import {
 	deleteDocument,
 	getDocument,
 	getMe,
 	type HttpClient,
 	postDocument,
+	postWorkspace,
+	postWorkspaceDocument,
+	putAsset,
 	putDocument,
 } from "./http.js";
 
@@ -22,6 +34,12 @@ export interface CommandDeps {
 
 export const POLL_INTERVAL_MS = 500;
 export const POLL_TIMEOUT_MS = 30_000;
+
+interface PreparedAssetRef extends HtmlAssetRef {
+	bytes: Buffer;
+	sha256: string;
+	size: number;
+}
 
 export interface PublishOpts {
 	/** Override the detected kind (rarely needed; extension wins by default). */
@@ -47,7 +65,22 @@ export function livingUrl(contentOrigin: string, slug: string, docPath: string):
 	if (docPath === "index.md" || docPath === "index.html") {
 		return `${base}/${slug}`;
 	}
-	return `${base}/${slug}/${docPath}`;
+	return `${base}/${slug}/${encodeWorkspacePath(docPath)}`;
+}
+
+/** Build the immutable, commit-pinned URL for one exact file version. */
+export function frozenUrl(
+	contentOrigin: string,
+	slug: string,
+	docPath: string,
+	version: string,
+): string {
+	const base = contentOrigin.replace(/\/+$/, "");
+	return `${base}/${slug}/${encodeWorkspacePath(docPath)}@${version}`;
+}
+
+function shortCommit(version: string): string {
+	return version.slice(0, 7);
 }
 
 /**
@@ -67,17 +100,43 @@ export async function publishCommand(
 	}
 	const body = fs.readFileSync(file, "utf8");
 	const kind = opts.kind ?? detectKind(file);
+	const assetRefs = collectAssetsForPublish(kind, body, file);
+	const targetDocPath = assetRefs.length > 0 ? publishDocPath(file) : null;
+	const assets = prepareAssetRefs(assetRefs);
 
-	const created = await postDocument(deps.http, kind, body);
-	const wsId = created.workspace.id;
-	const docId = created.document.id;
-	const slug = created.workspace.slug;
-	let docPath = created.document.doc_path;
+	let wsId: string;
+	let docId: string;
+	let slug: string;
+	let docPath: string;
+	let version: string | null;
+	let fileUrl: string | null;
+
+	if (assetRefs.length === 0) {
+		const created = await postDocument(deps.http, kind, body);
+		wsId = created.workspace.id;
+		docId = created.document.id;
+		slug = created.workspace.slug;
+		docPath = created.document.doc_path;
+		version = created.document.version;
+		fileUrl = created.document.file_url ?? null;
+	} else {
+		if (targetDocPath === null) {
+			throw new Error("internal error: missing target document path for HTML assets publish");
+		}
+		const workspace = await postWorkspace(deps.http);
+		wsId = workspace.id;
+		slug = workspace.slug;
+		await uploadAssetRefs(deps.http, wsId, assets);
+		const document = await postWorkspaceDocument(deps.http, wsId, targetDocPath, kind, body);
+		docId = document.id;
+		docPath = document.doc_path;
+		version = document.version;
+		fileUrl = document.file_url ?? null;
+	}
 
 	// Poll until the first save lands (version flips from null). Bounded by a
 	// 30s timeout so a stuck publish fails loudly instead of hanging forever.
 	const start = deps.now();
-	let version: string | null = created.document.version;
 	// Sequential by design: each poll waits for the previous to settle (the loop
 	// IS the wait), so the await-in-loop warning doesn't apply here.
 	// oxlint-disable no-await-in-loop
@@ -89,10 +148,12 @@ export async function publishCommand(
 		const doc = await getDocument(deps.http, wsId, docId);
 		version = doc.version;
 		docPath = doc.doc_path;
+		fileUrl = doc.file_url ?? fileUrl;
 	}
 	// oxlint-enable no-await-in-loop
 
 	const url = livingUrl(cfg.contentOrigin, slug, docPath);
+	const snapshotUrl = fileUrl ?? frozenUrl(cfg.contentOrigin, slug, docPath, version);
 	const entry: RegistryEntry = {
 		wsId,
 		docId,
@@ -101,17 +162,16 @@ export async function publishCommand(
 		kind,
 		docPath,
 		bytes: Buffer.byteLength(body, "utf8"),
+		assets: registryAssets(assets),
 		createdAt: new Date().toISOString(),
 	};
 	cfg.addEntry(file, entry);
 	cfg.save();
 
 	deps.log("");
-	deps.log(`  ${url}`);
-	deps.log("");
-	deps.log(`  slug   ${slug}`);
-	deps.log(`  type   ${kind}`);
-	deps.log(`  bytes  ${entry.bytes}`);
+	deps.log(`  ↳ ${url}`);
+	deps.log(`  commit  ${shortCommit(version)}`);
+	deps.log(`  frozen  ${snapshotUrl}`);
 	deps.log("");
 }
 
@@ -142,6 +202,13 @@ export async function updateCommand(target: string, cfg: Config, deps: CommandDe
 		);
 	}
 	const body = fs.readFileSync(file, "utf8");
+	const assetRefs = collectAssetsForPublish(entry.kind, body, file);
+	const assets = prepareAssetRefs(assetRefs);
+	await uploadAssetRefs(
+		deps.http,
+		entry.wsId,
+		assets.filter((asset) => assetNeedsUpload(asset, entry.assets?.[asset.assetPath])),
+	);
 
 	const doc = await putDocument(
 		deps.http,
@@ -152,12 +219,99 @@ export async function updateCommand(target: string, cfg: Config, deps: CommandDe
 	);
 
 	entry.bytes = Buffer.byteLength(body, "utf8");
+	entry.assets = registryAssets(assets);
+	if (doc.doc_path) entry.docPath = doc.doc_path;
 	cfg.save();
 
 	deps.log("");
 	deps.log(`  updated  ${entry.url}`);
-	deps.log(`  version  ${doc.version ?? "(pending — first save still landing)"}`);
+	if (doc.version) {
+		deps.log(`  commit   ${shortCommit(doc.version)}`);
+		deps.log(
+			`  frozen   ${doc.file_url ?? frozenUrl(cfg.contentOrigin, entry.slug, entry.docPath, doc.version)}`,
+		);
+	} else {
+		deps.log("  commit   (pending — first save still landing)");
+	}
 	deps.log("");
+}
+
+function collectAssetsForPublish(
+	kind: "markdown" | "html",
+	body: string,
+	file: string,
+): HtmlAssetRef[] {
+	return kind === "html" ? collectHtmlAssetRefs(body, file) : [];
+}
+
+function prepareAssetRefs(refs: HtmlAssetRef[]): PreparedAssetRef[] {
+	const out: PreparedAssetRef[] = [];
+	for (const ref of refs) {
+		if (!fs.existsSync(ref.localPath)) {
+			throw new Error(`local asset not found: ${ref.ref} (${ref.localPath})`);
+		}
+		const stat = fs.statSync(ref.localPath);
+		if (!stat.isFile()) {
+			throw new Error(`local asset is not a file: ${ref.ref} (${ref.localPath})`);
+		}
+		if (stat.size > MAX_ASSET_BYTES) {
+			throw new Error(
+				`local asset too large: ${ref.ref} is ${stat.size} bytes; max is ${MAX_ASSET_BYTES} bytes (${MAX_ASSET_BYTES_LABEL})`,
+			);
+		}
+		const bytes = fs.readFileSync(ref.localPath);
+		if (bytes.byteLength > MAX_ASSET_BYTES) {
+			throw new Error(
+				`local asset too large: ${ref.ref} is ${bytes.byteLength} bytes; max is ${MAX_ASSET_BYTES} bytes (${MAX_ASSET_BYTES_LABEL})`,
+			);
+		}
+		out.push({
+			...ref,
+			bytes,
+			sha256: createHash("sha256").update(bytes).digest("hex"),
+			size: bytes.byteLength,
+		});
+	}
+	return out;
+}
+
+async function uploadAssetRefs(
+	http: HttpClient,
+	wsId: string,
+	refs: PreparedAssetRef[],
+): Promise<void> {
+	await Promise.all(
+		refs.map((ref) => putAsset(http, wsId, ref.assetPath, ref.bytes, ref.contentType)),
+	);
+}
+
+function publishDocPath(file: string): string {
+	const docPath = path.basename(file);
+	if (!validWorkspacePath(docPath)) {
+		throw new Error(
+			`unsupported document path: ${docPath} (no leading/trailing slash, '.', '..', control chars, or \\ ? # %)`,
+		);
+	}
+	return docPath;
+}
+
+function assetNeedsUpload(asset: PreparedAssetRef, known: RegistryAssetEntry | undefined): boolean {
+	return (
+		known === undefined ||
+		known.sha256 !== asset.sha256 ||
+		known.contentType !== asset.contentType ||
+		known.size !== asset.size
+	);
+}
+
+function registryAssets(refs: PreparedAssetRef[]): Record<string, RegistryAssetEntry> | undefined {
+	if (refs.length === 0) return undefined;
+	return Object.fromEntries(
+		refs.map((ref) => [
+			ref.assetPath,
+			{ sha256: ref.sha256, contentType: ref.contentType, size: ref.size },
+		]),
+	);
 }
 
 /**

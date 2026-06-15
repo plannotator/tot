@@ -17,7 +17,14 @@ export interface RegistryEntry {
 	kind: "markdown" | "html";
 	docPath: string;
 	bytes: number;
+	assets?: Record<string, RegistryAssetEntry>;
 	createdAt: string;
+}
+
+export interface RegistryAssetEntry {
+	sha256: string;
+	contentType: string;
+	size: number;
 }
 
 interface ConfigShape {
