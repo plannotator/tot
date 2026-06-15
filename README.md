@@ -8,6 +8,11 @@
 
 Publish a markdown or HTML file to a live link in one command. No signup.
 
+The useful part is that it is **git-backed publishing**, not a one-off upload. The link you share is
+living, like a branch: run `tot update` and the same URL moves forward. Every publish also creates a
+real version with a frozen `@hash` URL, like a commit, so you can point people at either "latest" or
+"exactly this snapshot."
+
 ```bash
 npm i -g @plannotator/tot
 ```
@@ -29,6 +34,17 @@ tot notes.md
 | `tot list`              | Show what you have published.                                                          |
 | `tot remove <link>`     | Remove the living page from its share link.                                            |
 | `tot login --key <key>` | Optional. Publish as an owned account instead of anonymous.                            |
+
+## Why it exists
+
+Most "put this online" tools either render your markdown, hide the source behind an app, or give you
+a new URL every time you change something. `tot` is deliberately smaller:
+
+- Markdown and HTML are served raw, byte for byte.
+- The share link stays stable across updates.
+- Each update is still preserved as an immutable version.
+- HTML support files next to the page are uploaded first, so real HTML pages keep working.
+- No account is needed for the default flow; the link is the key.
 
 ## How it works
 
