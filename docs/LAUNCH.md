@@ -1,28 +1,36 @@
 # tot — Launch runbook (owner steps)
 
 Everything here needs **your** Cloudflare / npm credentials, so it can't run from an agent
-session. The code + config are already done and committed locally (see "What's already done").
-Do these in order. Nothing here is reversible-hard except production deploy; staging is safe.
+session. The staging-backed `tot.page` soft launch is already live; Workspaces production
+is still a separate, deliberate bootstrap/deploy/verify pass. Nothing here is reversible-hard
+except production deploy.
 
 ---
 
 ## What's already done (no action needed)
 
-- `tot` CLI built + tested (`~/oss/totpage`, 26 tests green).
-- Version-less content route built + tested (`~/oss/workspaces`, branch `feat/usercontent-living-route`, usercontent 18 tests green, no regressions).
-- Config wired: app production `USERCONTENT_ORIGIN=https://tot.page`; usercontent production has the `tot.page` Custom Domain route.
+- `tot` CLI built, tested, pushed, and published as `@plannotator/tot@0.1.1`.
+- Version-less content route, raw-pipe serving, v5 text mirror, support assets, and MP4 range serving are built, tested, merged, and deployed to the staging-backed `tot.page` / `api.tot.page` soft-launch path.
+- Config wired: staging custom domains point `tot.page` at the content worker and `api.tot.page` at the API worker; production config exists but production is not launched.
 - Takedown script: `~/oss/workspaces/scripts/takedown.sh`.
 - Architecture docs amended (`~/oss/infra`, branch `docs/tot-page-amendments`).
 
-All committed **locally, not pushed**.
+The code repos are on `main`; infra records are local in `~/oss/infra`.
 
 ---
 
-## Step 0 — Push the code (Claude can do this on your "go")
+## Step 0 — Confirm staging before production
 
-Pushing `feat/usercontent-living-route` to GitHub triggers CI → **staging** auto-deploy + re-verify.
-No production, no real users. This is how the new route goes live on staging to test.
-(Merging to main / production deploy is separate and gated.)
+Before any production launch, rerun the staging verifier against both workers.dev and
+the product domains:
+
+```bash
+cd ~/oss/workspaces
+WORKSPACES_API_TOKEN=<staging-api-token> pnpm verify:v5-live -- --env staging --r2-check --repair
+WORKSPACES_API_TOKEN=<staging-api-token> pnpm verify:v5-live -- --env staging --tot-page --r2-check --repair
+```
+
+Production deploy remains separate and gated.
 
 ---
 
@@ -125,7 +133,7 @@ It prints the cache-purge command to evict the cached copy immediately.
 
 ## Order that matters
 
-1. Push (Step 0) → test on staging.
+1. Confirm staging (Step 0).
 2. Zone + token (Step 1).
 3. **Custom domain (Step 2) BEFORE any production page** — non-retrofittable.
 4. Rate limits + cost alert (Steps 3–4) **before** real traffic.
