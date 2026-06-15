@@ -93,15 +93,19 @@ do the front-line work.
 
 ---
 
-## Step 5 — Publish the CLI to npm (when you want people to use it)
+## Step 5 — Publish the CLI to npm
+
+Current release: `@plannotator/tot@0.1.1`.
+
+Future patch releases use the same flow:
 
 ```bash
 cd ~/oss/totpage
-npm login                    # your npm account
-npm publish --access public  # publishes @plannotator/tot
+npm version patch --no-git-tag-version  # or edit package.json deliberately
+npm publish --access public
 ```
 
-Then anyone can: `npm install -g @plannotator/tot` → `tot notes.md`.
+Anyone can: `npm install -g @plannotator/tot` → `tot notes.md`.
 
 ---
 
@@ -125,4 +129,4 @@ It prints the cache-purge command to evict the cached copy immediately.
 2. Zone + token (Step 1).
 3. **Custom domain (Step 2) BEFORE any production page** — non-retrofittable.
 4. Rate limits + cost alert (Steps 3–4) **before** real traffic.
-5. npm publish (Step 5) whenever you're ready for users.
+5. npm publish (Step 5) is done for `@plannotator/tot@0.1.1`; repeat only for future patch releases.
