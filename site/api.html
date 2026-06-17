@@ -26,9 +26,14 @@
 					title: "tot API",
 					version: "1.0.0",
 					description:
-						"The HTTP API behind [tot.page](https://tot.page). The `tot` CLI is a thin wrapper over these endpoints — anything it does, you (or an agent) can do directly with `curl`.\n\n**Two ways in:** publish **anonymously** (the page is `open` — the link is the key, anyone with it can read, update, or delete it), or send a Bearer API key (`wsk_live_…`) to own your pages.\n\n**Publish shape.** Markdown and bare HTML use one call: `POST /v1/documents`. HTML with direct local support files uses the workspace-first flow: create an empty workspace, upload assets, then commit the HTML last.\n\n**Living vs frozen.** Every publish/update mints a version (a content hash). The page's `share_url` is *living* — it always shows the latest. Each version also has a frozen `…@hash` URL that never changes.\n\nBase URL: `https://api.tot.page`",
+						"The HTTP API behind [tot.page](https://tot.page). The `tot` CLI is a thin wrapper over these endpoints — anything it does, you (or an agent) can do directly with `curl`.\n\n**Deployment status.** `https://api.tot.page` is the public soft-launch API endpoint and is currently backed by the Workspaces staging worker. Workspaces production is not launched yet. The deployed `/v1/openapi.yaml` now serves the live API profile, which excludes planned annotation and version-history list/restore routes until those product endpoints are implemented.\n\n**Two ways in:** publish **anonymously** (the page is `open` — the link is the key, anyone with it can read, update, or delete it), or send a Bearer API key (`wsk_live_…`) to own your pages.\n\n**Publish shape.** Markdown and bare HTML use one call: `POST /v1/documents`. HTML with direct local support files uses the workspace-first flow: create an empty workspace, upload assets, then commit the HTML last.\n\n**Living vs frozen.** Every publish/update mints a version (a content hash). The page's `share_url` is *living* — it always shows the latest. Each version also has a frozen `…@hash` URL that never changes.\n\nBase URL: `https://api.tot.page`",
 				},
-				servers: [{ url: "https://api.tot.page", description: "Production" }],
+				servers: [
+					{
+						url: "https://api.tot.page",
+						description: "Public soft launch (staging-backed)",
+					},
+				],
 				tags: [
 					{ name: "Publish", description: "Create and change pages." },
 					{
