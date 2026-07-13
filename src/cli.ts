@@ -52,7 +52,7 @@ const HELP = `tot — publish a page to tot.page
   tot login --key <KEY>   save a pre-minted wsk_live_ key to ~/.tot (optional)
 
 flags
-  --endpoint <url>   override the API origin (default https://workspaces.plannotator.ai)
+  --endpoint <url>   override the API origin (default https://api.tot.page)
   --key <KEY>        API key for this run (login persists it)
   --help             show this help`;
 

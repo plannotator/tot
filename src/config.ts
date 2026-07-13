@@ -2,9 +2,11 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-/** The /v1 API origin the CLI talks to. The API is a Workspaces surface; tot.page
- * remains the cookieless raw content origin. */
-export const DEFAULT_ENDPOINT = "https://workspaces.plannotator.ai";
+/** The /v1 API origin the CLI talks to. `api.tot.page` is the live tot publish
+ * backend; tot.page remains the cookieless raw content origin. Do NOT default to
+ * `workspaces.plannotator.ai` — that hostname has no DNS and no server, so a CLI
+ * shipped with it fails on every command. */
+export const DEFAULT_ENDPOINT = "https://api.tot.page";
 /** The public content origin where living pages are served (the link you share). */
 export const DEFAULT_CONTENT_ORIGIN = "https://tot.page";
 

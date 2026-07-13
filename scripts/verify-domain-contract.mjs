@@ -1,12 +1,15 @@
-// Verify the CLI package keeps the Workspaces/tot domain split honest.
+// Verify the CLI package keeps the API/content domain split honest.
 //
-// The CLI talks to the Workspaces app/API origin. The links it prints stay on
-// the cookieless raw content origin.
+// The CLI talks to the live tot publish backend at api.tot.page. The links it
+// prints stay on the cookieless raw content origin. `workspaces.plannotator.ai`
+// has no DNS and no server — a package that defaults to it fails on every
+// command, so it must never appear on the package surface.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
-const EXPECTED_API_ENDPOINT = "https://workspaces.plannotator.ai";
+const EXPECTED_API_ENDPOINT = "https://api.tot.page";
 const EXPECTED_CONTENT_ORIGIN = "https://tot.page";
+const DEAD_API_ENDPOINT = "https://workspaces.plannotator.ai";
 
 const exactChecks = [
 	{
@@ -57,8 +60,10 @@ for (const check of exactChecks) {
 
 for (const file of packageSurfaceFiles) {
 	const text = read(file);
-	if (text.includes("api.tot.page")) {
-		fail(`${file} advertises api.tot.page; it is only a temporary compatibility alias`);
+	if (text.includes(DEAD_API_ENDPOINT)) {
+		fail(
+			`${file} advertises ${DEAD_API_ENDPOINT}; that hostname has no DNS/server and breaks every CLI command`,
+		);
 	}
 	if (text.includes("usercontent.plannotator.ai")) {
 		fail(`${file} contains the old usercontent placeholder; content links belong on tot.page`);

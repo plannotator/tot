@@ -53,7 +53,7 @@ No accounts, no tokens. The link is the key. Treat them as you would excalidraw.
 
 ## Configuration
 
-State lives in `~/.tot`: the Workspaces API endpoint and the list of pages you have published. Override the API origin for one run with `--endpoint <url>`. Content links remain on `tot.page`; the API origin is `workspaces.plannotator.ai` for public release and `staging.workspaces.plannotator.ai` for staging verification.
+State lives in `~/.tot`: the API endpoint and the list of pages you have published. Override the API origin for one run with `--endpoint <url>`. Content links remain on `tot.page`; the API origin defaults to `api.tot.page`, the live tot publish backend.
 
 ## Built on
 

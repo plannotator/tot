@@ -3,7 +3,7 @@
 Publish a markdown or HTML file to a live, public URL. The `tot` CLI is a thin
 wrapper over this API; you can use it directly with `curl`.
 
-- **Base URL:** `https://workspaces.plannotator.ai`
+- **Base URL:** `https://api.tot.page`
 - **Pages are served at:** `https://tot.page/{slug}`
 - **Auth:** optional. Send `Authorization: Bearer wsk_live_…` to own your pages.
   With no auth, the page is **`open`** — the link is the key: anyone who has it can
@@ -31,7 +31,7 @@ wrapper over this API; you can use it directly with `curl`.
 For markdown and bare HTML with no local refs, use `POST /v1/documents`.
 
 ```bash
-curl -X POST https://workspaces.plannotator.ai/v1/documents \
+curl -X POST https://api.tot.page/v1/documents \
   -H 'content-type: application/json' \
   -d '{"kind":"markdown","body":"# Hello\n\nPublished with tot."}'
 ```
@@ -88,7 +88,7 @@ Support asset content types:
 - `Accept: text/markdown` → the raw body.
 
 ```bash
-curl https://workspaces.plannotator.ai/v1/workspaces/$WS/documents/$DOC
+curl https://api.tot.page/v1/workspaces/$WS/documents/$DOC
 ```
 
 ## Update a page (same link, new content)
@@ -99,7 +99,7 @@ Re-scan the local HTML first. Upload new or changed support files with
 `PUT /v1/workspaces/{wsId}/documents/{docId}` — **raw body, not JSON.**
 
 ```bash
-curl -X PUT https://workspaces.plannotator.ai/v1/workspaces/$WS/documents/$DOC \
+curl -X PUT https://api.tot.page/v1/workspaces/$WS/documents/$DOC \
   -H 'content-type: text/markdown' \
   --data '# Updated content'
 ```
@@ -120,13 +120,13 @@ On an `open` page, anyone with the link can delete it.
 ## End-to-end (publish, wait, done)
 
 ```bash
-RESP=$(curl -s -X POST https://workspaces.plannotator.ai/v1/documents \
+RESP=$(curl -s -X POST https://api.tot.page/v1/documents \
   -H 'content-type: application/json' -d '{"kind":"markdown","body":"# Hi"}')
 WS=$(echo "$RESP"  | jq -r .workspace.id)
 DOC=$(echo "$RESP" | jq -r .document.id)
 URL=$(echo "$RESP" | jq -r .workspace.share_url)
 # poll until checkpointed, then the page is live at $URL
-until [ "$(curl -s https://workspaces.plannotator.ai/v1/workspaces/$WS/documents/$DOC | jq -r .version)" != "null" ]; do sleep 2; done
+until [ "$(curl -s https://api.tot.page/v1/workspaces/$WS/documents/$DOC | jq -r .version)" != "null" ]; do sleep 2; done
 echo "live: $URL"
 ```
 

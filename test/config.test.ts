@@ -38,6 +38,15 @@ function entry(over: Partial<RegistryEntry> = {}): RegistryEntry {
 }
 
 describe("config", () => {
+	// Catches: THE dead-default regression. The default API origin must be the
+	// live tot publish backend. `https://workspaces.plannotator.ai` has no DNS
+	// and no server — a release that defaults to it fails on every command.
+	// Pin the literal so a default change is a deliberate, test-visible act.
+	it("DEFAULT_ENDPOINT is the live tot publish backend (literal pin)", () => {
+		expect(DEFAULT_ENDPOINT).toBe("https://api.tot.page");
+		expect(DEFAULT_CONTENT_ORIGIN).toBe("https://tot.page");
+	});
+
 	// Catches: a missing ~/.tot crashing the CLI instead of using defaults.
 	it("load with no file yields defaults (endpoint, content origin, null key, empty registry)", () => {
 		const cfg = Config.load();
