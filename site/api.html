@@ -26,12 +26,12 @@
 					title: "tot API",
 					version: "1.0.0",
 					description:
-						"The Workspaces HTTP API used by [tot.page](https://tot.page). The `tot` CLI is a thin wrapper over these endpoints — anything it does, you (or an agent) can do directly with `curl`.\n\n**Deployment status.** Workspaces production is not launched yet. The current usable API origin is staging: `https://staging.workspaces.plannotator.ai`. `https://workspaces.plannotator.ai` is the canonical Workspaces API origin for public release once production is wired. `api.tot.page` is only a temporary compatibility alias for already-published tot clients; new docs and packages must not advertise it. The deployed `/v1/openapi.yaml` serves the live API profile, which excludes planned version-history list/restore routes until those product endpoints are implemented.\n\n**Two ways in:** publish **anonymously** (the page is `open` — the link is the key, anyone with it can read, update, or delete it), or send a Bearer API key (`wsk_live_…`) to own your pages.\n\n**Publish shape.** Markdown and bare HTML use one call: `POST /v1/documents`. HTML with direct local support files uses the workspace-first flow: create an empty workspace, upload assets, then commit the HTML last.\n\n**Living vs frozen.** Every publish/update mints a version (a content hash). The page's `share_url` is *living* — it always shows the latest. Each version also has a frozen `…@hash` URL that never changes.\n\nCurrent base URL: `https://staging.workspaces.plannotator.ai`",
+						"The Workspaces HTTP API used by [tot.page](https://tot.page). The `tot` CLI is a thin wrapper over these endpoints — anything it does, you (or an agent) can do directly with `curl`.\n\n**Deployment status.** The live tot API origin is `https://api.tot.page` — tot's publish backend, and the origin the published `tot` CLI talks to. Workspaces production is not launched yet; once it is, `https://workspaces.plannotator.ai` becomes the canonical Workspaces API origin (it has no DNS or server today, so do not call it yet). The former staging origin `staging.workspaces.plannotator.ai` is retired and no longer answers.\n\n**Two ways in:** publish **anonymously** (the page is `open` — the link is the key, anyone with it can read, update, or delete it), or send a Bearer API key (`wsk_live_…`) to own your pages.\n\n**Publish shape.** Markdown and bare HTML use one call: `POST /v1/documents`. HTML with direct local support files uses the workspace-first flow: create an empty workspace, upload assets, then commit the HTML last.\n\n**Living vs frozen.** Every publish/update mints a version (a content hash). The page's `share_url` is *living* — it always shows the latest. Each version also has a frozen `…@hash` URL that never changes.\n\nCurrent base URL: `https://api.tot.page`",
 				},
 				servers: [
 					{
-						url: "https://staging.workspaces.plannotator.ai",
-						description: "Current staging Workspaces API origin",
+						url: "https://api.tot.page",
+						description: "Live tot API origin (tot's publish backend)",
 					},
 				],
 				tags: [
@@ -107,7 +107,7 @@
 							"x-codeSamples": [
 								{
 									lang: "curl",
-									source: 'curl -X POST https://staging.workspaces.plannotator.ai/v1/documents \\\n  -H \'content-type: application/json\' \\\n  -d \'{"kind":"markdown","body":"# Hello"}\'',
+									source: 'curl -X POST https://api.tot.page/v1/documents \\\n  -H \'content-type: application/json\' \\\n  -d \'{"kind":"markdown","body":"# Hello"}\'',
 								},
 							],
 						},
@@ -160,7 +160,7 @@
 							"x-codeSamples": [
 								{
 									lang: "curl",
-									source: "curl -X POST https://staging.workspaces.plannotator.ai/v1/workspaces \\\n  -H 'content-type: application/json' \\\n  -d '{}'",
+									source: "curl -X POST https://api.tot.page/v1/workspaces \\\n  -H 'content-type: application/json' \\\n  -d '{}'",
 								},
 							],
 						},
@@ -229,7 +229,7 @@
 							"x-codeSamples": [
 								{
 									lang: "curl",
-									source: "curl -X PUT https://staging.workspaces.plannotator.ai/v1/workspaces/$WS/assets/assets/logo.webp \\\n  -H 'content-type: image/webp' \\\n  --data-binary @assets/logo.webp",
+									source: "curl -X PUT https://api.tot.page/v1/workspaces/$WS/assets/assets/logo.webp \\\n  -H 'content-type: image/webp' \\\n  --data-binary @assets/logo.webp",
 								},
 							],
 						},
@@ -324,7 +324,7 @@
 							"x-codeSamples": [
 								{
 									lang: "curl",
-									source: "curl https://staging.workspaces.plannotator.ai/v1/workspaces/$WS/documents/$DOC",
+									source: "curl https://api.tot.page/v1/workspaces/$WS/documents/$DOC",
 								},
 							],
 						},
@@ -381,7 +381,7 @@
 							"x-codeSamples": [
 								{
 									lang: "curl",
-									source: "curl -X PUT https://staging.workspaces.plannotator.ai/v1/workspaces/$WS/documents/$DOC \\\n  -H 'content-type: text/markdown' \\\n  --data '# Updated'",
+									source: "curl -X PUT https://api.tot.page/v1/workspaces/$WS/documents/$DOC \\\n  -H 'content-type: text/markdown' \\\n  --data '# Updated'",
 								},
 							],
 						},
@@ -399,7 +399,7 @@
 							"x-codeSamples": [
 								{
 									lang: "curl",
-									source: "curl -X DELETE https://staging.workspaces.plannotator.ai/v1/workspaces/$WS/documents/$DOC",
+									source: "curl -X DELETE https://api.tot.page/v1/workspaces/$WS/documents/$DOC",
 								},
 							],
 						},
@@ -426,7 +426,7 @@
 							"x-codeSamples": [
 								{
 									lang: "curl",
-									source: "curl https://staging.workspaces.plannotator.ai/v1/me -H 'authorization: Bearer wsk_live_…'",
+									source: "curl https://api.tot.page/v1/me -H 'authorization: Bearer wsk_live_…'",
 								},
 							],
 						},
