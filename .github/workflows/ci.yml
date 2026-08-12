@@ -50,5 +50,5 @@ jobs:
             - name: Verify domain contract
               run: pnpm verify:contract
 
-            - name: Audit production dependencies
-              run: pnpm audit --prod --audit-level high
+            - name: Audit all dependencies
+              run: pnpm audit --audit-level high
