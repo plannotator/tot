@@ -14,6 +14,8 @@ Root is for the npm package and top-level project files:
 
 - `src/` - CLI implementation.
 - `test/` - CLI tests.
+- `skills/tot` - distributable agent skill (`SKILL.md` + `references/`) that teaches
+  agents to publish via the `tot` CLI or the HTTP API directly, no install required.
 - `package.json`, `pnpm-lock.yaml`, `tsconfig*.json`, `vitest.config.ts` - package tooling.
 - `README.md`, `LICENSE` - public package metadata.
 

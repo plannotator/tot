@@ -35,6 +35,20 @@ tot notes.md
 | `tot remove <link>`     | Remove the living page from its share link.                                            |
 | `tot login --key <key>` | Optional. Publish as an owned account instead of anonymous.                            |
 
+## For AI agents
+
+Agents can publish with zero install: the CLI is a thin wrapper over the HTTP API at
+`https://api.tot.page`, and a drop-in [agent skill](skills/tot/SKILL.md) teaches the full
+curl flow — publish, update, remove, HTML assets, ownership. Copy it into your agent's
+skills directory:
+
+```bash
+cp -r skills/tot ~/.claude/skills/tot # or .cursor/skills/, ~/.agents/skills/, …
+```
+
+Plain API reference: [site/agents.md](site/agents.md). With the CLI installed the skill
+uses `tot`; otherwise it falls back to curl.
+
 ## How it works
 
 Files are served byte for byte. Markdown comes back as raw markdown. HTML comes back as raw HTML.
