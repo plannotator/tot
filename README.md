@@ -37,17 +37,18 @@ tot notes.md
 
 ## For AI agents
 
-Agents can publish with zero install: the CLI is a thin wrapper over the HTTP API at
-`https://api.tot.page`, and a drop-in [agent skill](skills/tot/SKILL.md) teaches the full
-curl flow — publish, update, remove, HTML assets, ownership. Copy it into your agent's
-skills directory:
+> [!NOTE]
+> The skill works without the `tot` CLI: it publishes via curl against the HTTP API at
+> `https://api.tot.page`. With `tot` on PATH it uses the CLI instead.
+
+### Install
 
 ```bash
-cp -r skills/tot ~/.claude/skills/tot # or .cursor/skills/, ~/.agents/skills/, …
+npx skills add plannotator/tot
 ```
 
-Plain API reference: [site/agents.md](site/agents.md). With the CLI installed the skill
-uses `tot`; otherwise it falls back to curl.
+Skill: [`skills/tot/SKILL.md`](skills/tot/SKILL.md) — publish, update, remove, HTML
+assets, ownership. Plain API reference: [site/agents.md](site/agents.md).
 
 ## How it works
 
