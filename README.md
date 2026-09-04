@@ -35,6 +35,21 @@ tot notes.md
 | `tot remove <link>`     | Remove the living page from its share link.                                            |
 | `tot login --key <key>` | Optional. Publish as an owned account instead of anonymous.                            |
 
+## For AI agents
+
+> [!NOTE]
+> The skill works without the `tot` CLI: it publishes via curl against the HTTP API at
+> `https://api.tot.page`. With `tot` on PATH it uses the CLI instead.
+
+### Install
+
+```bash
+npx skills add plannotator/tot
+```
+
+Skill: [`skills/tot/SKILL.md`](skills/tot/SKILL.md) — publish, update, remove, HTML
+assets, ownership. Plain API reference: [site/agents.md](site/agents.md).
+
 ## How it works
 
 Files are served byte for byte. Markdown comes back as raw markdown. HTML comes back as raw HTML.
